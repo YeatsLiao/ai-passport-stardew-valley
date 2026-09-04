@@ -1,0 +1,12 @@
+# Name,   Type, SubType, Offset,   Size,     Flags
+# 与 FoloToy AI Passport 官方分区契约保持一致:
+#   - factory 3MB 应用上限(小程序 BLE 安装兼容)
+#   - cardid@0x356000 / recovery@0x700000 为保护区域,不得改动
+# v1 全部图鉴资源嵌入应用只读段,无需额外资源分区;
+# 未来如需音频资源,可在 cardid 结束(0x35A000)与 recovery(0x700000)
+# 之间的 ~3.65MB 空隙增加数据分区(官方文档允许,不与保护区重叠)。
+nvs,      data, nvs,     0x9000,   0x6000,
+phy_init, data, phy,     0xf000,   0x1000,
+factory,  app,  factory, 0x10000,  0x300000,
+cardid,   data, nvs,     0x356000, 0x4000,
+recovery, app,  test,    0x700000, 0x100000,
