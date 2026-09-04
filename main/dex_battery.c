@@ -21,9 +21,9 @@ static void bat_tick(lv_timer_t *t)
     if (!s_label) return;
     int soc = bsp_battery_soc();
     if (soc < 0) {
-        lv_label_set_text(s_label, "--");
+        lv_label_set_text(s_label, "BAT: --");
     } else {
-        lv_label_set_text_fmt(s_label, "%d%%", soc);
+        lv_label_set_text_fmt(s_label, "BAT: %d%%", soc);
     }
 }
 
