@@ -14,19 +14,15 @@ void dex_layout_build(dex_layout_t *o)
 
     /* 垂直预算(总高 320):
      *   header 0..24  图井 26..126  名称 128..150
-     *   描述 152..216(4行自动换行)  属性 218..298  提示条 302..320
+     *   信息面板 152..298(描述+属性完整内容,超高自动循环滚动)
+     *   提示条 302..320
      * 图井外框 100x100(含 2px 边框),内区恰好 96x96,
      * 与 DEX_SPRITE_MAX_W/H 一致,96x96 大图正好填满不溢出。 */
     o->sprite_frame = (dex_rect_t){70, 26, 100, 100};
     o->sprite = (dex_rect_t){72, 28, 96, 96};
 
     o->name = (dex_rect_t){0, 128, 240, 22};
-    o->desc = (dex_rect_t){10, 152, 220, 64};
-
-    for (int i = 0; i < DEX_ATTR_ROWS; i++) {
-        o->attr_label[i] = (dex_rect_t){12, (int16_t)(218 + i * 16), 70, 16};
-        o->attr_value[i] = (dex_rect_t){86, (int16_t)(218 + i * 16), 142, 16};
-    }
+    o->info = (dex_rect_t){0, 152, 240, 146};
 
     o->hint = (dex_rect_t){0, 302, 240, 18};
 }

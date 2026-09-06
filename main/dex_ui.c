@@ -85,9 +85,13 @@ static lv_obj_t *s_pos_l;
 static lv_obj_t *s_img;
 static lv_obj_t *s_img_hint;
 static lv_obj_t *s_name_l;
+/* 信息面板:视口 + 内部完整文本(不省略),超高时自动垂直循环滚动 */
+static lv_obj_t *s_info_view;
 static lv_obj_t *s_desc_l;
-static lv_obj_t *s_attr_l[ATTR_ROW_MAX];
-static lv_obj_t *s_attr_v[ATTR_ROW_MAX];
+static lv_obj_t *s_attr_l[ATTR_ROW_MAX];   /* 属性名,CS_DIM,宽自适应 */
+static lv_obj_t *s_attr_v[ATTR_ROW_MAX];   /* 属性值,CS_INK,同行紧随其右 */
+static lv_timer_t *s_scroll_timer;
+static int32_t s_scroll_max;          /* 面板最大滚动量(px),0=无需滚动 */
 static dex_layout_t s_lay;
 
 /* worker:解码双缓冲 + 消息队列 */
@@ -404,6 +408,28 @@ static void build_list_page(void)
 // ---------------------------------------------------------------------------
 // 详情页
 // ---------------------------------------------------------------------------
+/* 信息面板循环滚动:内容高于视口时以约 33px/s 匀速下移,到底停 1.5s
+ * 回顶再继续;内容不超高则不动。屏幕无滚动按键,长内容只能自动滚。 */
+static void scroll_tick(lv_timer_t *t)
+{
+    (void)t;
+    static int pause; /* 到底停留计数(30ms/tick) */
+    if (s_page != PAGE_DETAIL || !s_info_view || s_scroll_max <= 0) {
+        pause = 0;
+        return;
+    }
+    if (pause) {
+        pause--;
+        return;
+    }
+    if (lv_obj_get_scroll_y(s_info_view) >= s_scroll_max) {
+        pause = 50; /* 到底停约 1.5s */
+        lv_obj_scroll_to_y(s_info_view, 0, LV_ANIM_OFF);
+        return;
+    }
+    lv_obj_scroll_by(s_info_view, 0, -1, LV_ANIM_OFF);
+}
+
 static void apply_entry(void)
 {
     const dex_entry_t *e = dex_entry_at(s_cat, s_idx);
@@ -416,17 +442,50 @@ static void apply_entry(void)
 
     dex_attr_text_t attrs[ATTR_ROW_MAX];
     size_t na = dex_entry_attrs_text(e, attrs, ATTR_ROW_MAX);
+
+    /* 先统一设文本,再一次性更新布局,最后按实测高度流式排布:
+     * 属性名/属性值均完整显示(自动换行,高度自适应),绝不省略。 */
     for (int i = 0; i < ATTR_ROW_MAX; i++) {
         if (i < (int)na) {
             lv_obj_remove_flag(s_attr_l[i], LV_OBJ_FLAG_HIDDEN);
-            lv_obj_remove_flag(s_attr_v[i], LV_OBJ_FLAG_HIDDEN);
-            lv_label_set_text(s_attr_l[i], attrs[i].label);
-            lv_label_set_text(s_attr_v[i], attrs[i].value);
+            lv_label_set_text_fmt(s_attr_l[i], "%s:", attrs[i].label);
+            if (attrs[i].value[0]) {
+                lv_obj_remove_flag(s_attr_v[i], LV_OBJ_FLAG_HIDDEN);
+                lv_label_set_text(s_attr_v[i], attrs[i].value);
+            } else {
+                lv_obj_add_flag(s_attr_v[i], LV_OBJ_FLAG_HIDDEN);
+            }
         } else {
             lv_obj_add_flag(s_attr_l[i], LV_OBJ_FLAG_HIDDEN);
             lv_obj_add_flag(s_attr_v[i], LV_OBJ_FLAG_HIDDEN);
         }
     }
+    lv_obj_update_layout(s_info_view);
+
+    int y = 0;
+    lv_obj_set_pos(s_desc_l, 12, (int16_t)y);
+    y += lv_obj_get_height(s_desc_l) + 8;
+    for (int i = 0; i < ATTR_ROW_MAX; i++) {
+        if (lv_obj_has_flag(s_attr_l[i], LV_OBJ_FLAG_HIDDEN)) continue;
+        /* 名称宽度自适应(完整不截断),值紧随其右同行接排;
+         * 值折行后从名称右缘起悬挂缩进,行高取两者较大者 */
+        int lw = lv_obj_get_width(s_attr_l[i]);
+        int vw = 216 - lw - 4;
+        if (vw < 60) vw = 60;
+        lv_obj_set_width(s_attr_v[i], (int32_t)vw);
+        lv_obj_update_layout(s_info_view);
+        int lh = lv_obj_get_height(s_attr_l[i]);
+        int vh = lv_obj_has_flag(s_attr_v[i], LV_OBJ_FLAG_HIDDEN)
+                     ? 0 : lv_obj_get_height(s_attr_v[i]);
+        lv_obj_set_pos(s_attr_l[i], 12, (int16_t)y);
+        if (vh) lv_obj_set_pos(s_attr_v[i], 12 + lw + 4, (int16_t)y);
+        y += (vh > lh ? vh : lh) + 6;
+    }
+
+    lv_obj_update_layout(s_info_view);
+    lv_obj_scroll_to_y(s_info_view, 0, LV_ANIM_OFF);
+    int32_t bottom = lv_obj_get_scroll_bottom(s_info_view);
+    s_scroll_max = bottom > 0 ? bottom : 0; /* 不超高则不滚 */
 
     /* 不再预隐藏图片:旧图保留到新图解码完成,由 poll 无缝替换,
      * 消除"切换瞬间空白/卡在 ..."的不显示观感。仅真正无图时 poll 显示提示。 */
@@ -477,41 +536,45 @@ static void build_detail_page(void)
     lv_obj_set_pos(s_name_l, s_lay.name.x, s_lay.name.y);
     lv_obj_set_style_text_align(s_name_l, LV_TEXT_ALIGN_CENTER, 0);
 
-    s_desc_l = lv_label_create(s_det_scr);
+    /* 信息面板:描述+属性的完整内容(不省略、不打点),文本自适应高度,
+     * 总高超出视口时由 scroll_tick 自动垂直循环滚动 */
+    s_info_view = lv_obj_create(s_det_scr);
+    lv_obj_remove_style_all(s_info_view);
+    lv_obj_set_pos(s_info_view, s_lay.info.x, s_lay.info.y);
+    lv_obj_set_size(s_info_view, s_lay.info.w, s_lay.info.h);
+    lv_obj_add_flag(s_info_view, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scroll_dir(s_info_view, LV_DIR_VER);
+    lv_obj_set_scrollbar_mode(s_info_view, LV_SCROLLBAR_MODE_OFF);
+
+    s_desc_l = lv_label_create(s_info_view);
     lv_obj_set_style_text_font(s_desc_l, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(s_desc_l, lv_color_hex(CS_DIM), 0);
-    /* 定宽 + 自动换行:长描述在框内换行完整可读(超出固定高度才裁剪) */
-    lv_obj_set_size(s_desc_l, s_lay.desc.w, s_lay.desc.h);
-    lv_obj_set_pos(s_desc_l, s_lay.desc.x, s_lay.desc.y);
+    lv_obj_set_width(s_desc_l, 216);      /* 定宽,高度随内容自适应 */
     lv_label_set_long_mode(s_desc_l, LV_LABEL_LONG_WRAP);
 
-    /* 属性行:label/value 各自定宽 + 省略号,避免横向溢出屏幕 */
     for (int i = 0; i < ATTR_ROW_MAX; i++) {
-        s_attr_l[i] = lv_label_create(s_det_scr);
+        /* 属性名:CS_DIM 弱色,宽度自适应完整显示,不截断 */
+        s_attr_l[i] = lv_label_create(s_info_view);
         lv_obj_set_style_text_font(s_attr_l[i], &lv_font_montserrat_14, 0);
         lv_obj_set_style_text_color(s_attr_l[i], lv_color_hex(CS_DIM), 0);
-        lv_obj_set_size(s_attr_l[i], s_lay.attr_label[i].w,
-                        s_lay.attr_label[i].h);
-        lv_obj_set_pos(s_attr_l[i], s_lay.attr_label[i].x,
-                       s_lay.attr_label[i].y);
-        lv_label_set_long_mode(s_attr_l[i], LV_LABEL_LONG_DOT);
+        lv_label_set_long_mode(s_attr_l[i], LV_LABEL_LONG_WRAP);
 
-        s_attr_v[i] = lv_label_create(s_det_scr);
+        /* 属性值:CS_INK 强色,宽度在 apply_entry 按名称实际宽动态设定 */
+        s_attr_v[i] = lv_label_create(s_info_view);
         lv_obj_set_style_text_font(s_attr_v[i], &lv_font_montserrat_14, 0);
         lv_obj_set_style_text_color(s_attr_v[i], lv_color_hex(CS_INK), 0);
-        lv_obj_set_size(s_attr_v[i], s_lay.attr_value[i].w,
-                        s_lay.attr_value[i].h);
-        lv_obj_set_pos(s_attr_v[i], s_lay.attr_value[i].x,
-                       s_lay.attr_value[i].y);
-        /* 值可能较长(如配方),自动换行显示;定高超出才裁,不再滚动 */
+        lv_obj_set_width(s_attr_v[i], 216);
         lv_label_set_long_mode(s_attr_v[i], LV_LABEL_LONG_WRAP);
     }
 
-    /* 位置 chip 放在标题条内,与右侧电量标签留出间隔 */
+    /* 位置 chip 放在标题条内,紧贴类别名右侧(间距 8px)。
+     * 最长类别名 "Artisan Goods" + chip 最宽 "999/999" 时右缘约 161px,
+     * 不会碰到电池(左缘约 166px)。 */
     s_pos_l = lv_label_create(lv_obj_get_parent(title_l));
     lv_obj_set_style_text_font(s_pos_l, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(s_pos_l, lv_color_hex(CS_PANEL), 0);
-    lv_obj_align(s_pos_l, LV_ALIGN_RIGHT_MID, -64, 0);
+    lv_obj_update_layout(title_l);
+    lv_obj_align_to(s_pos_l, title_l, LV_ALIGN_OUT_RIGHT_MID, 8, 0);
 
     make_hint(s_det_scr, "UP/DN +-1  HOLD +-10  OK BACK");
     lv_screen_load(s_det_scr);
@@ -530,6 +593,8 @@ static void leave_detail(void)
     lv_obj_delete(s_det_scr);
     s_det_scr = NULL;
     s_img = NULL;
+    s_info_view = NULL;
+    s_scroll_max = 0;
     build_list_page();
 }
 
@@ -646,6 +711,7 @@ void dex_ui_init(void)
 
     dex_battery_timers_start();
     s_poll_timer = lv_timer_create(poll_tick, 30, NULL);
+    s_scroll_timer = lv_timer_create(scroll_tick, 30, NULL);
 
     build_category_page();
 }

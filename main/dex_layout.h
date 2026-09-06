@@ -1,5 +1,5 @@
 // main/dex_layout.h —— 图鉴 240x320 布局几何(纯 C,不依赖 ESP-IDF/LVGL)。
-// 详情页:顶部标题条、右上/居中图片井、名称、描述区、属性行、底部按键提示。
+// 详情页:顶部标题条、右上/居中图片井、名称、信息面板、底部按键提示。
 // 所有矩形必须落在屏内且兄弟区域不相交(几何约束便于宿主校验)。
 #pragma once
 
@@ -23,9 +23,8 @@ typedef struct {
     dex_rect_t sprite_frame; /* 图片井外框 */
     dex_rect_t sprite;       /* 图片实际区域(井内) */
     dex_rect_t name;         /* 条目名 */
-    dex_rect_t desc;         /* 描述,≤3 行 */
-    dex_rect_t attr_label[DEX_ATTR_ROWS]; /* 属性行左列 */
-    dex_rect_t attr_value[DEX_ATTR_ROWS]; /* 属性行右列 */
+    dex_rect_t info;         /* 信息面板视口:描述+属性完整内容,
+                              * 高度超出时由 UI 层自动垂直循环滚动 */
     dex_rect_t hint;         /* 底部按键提示条 */
 } dex_layout_t;
 
