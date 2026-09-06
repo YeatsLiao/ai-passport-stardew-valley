@@ -28,6 +28,9 @@ embedded inside the 3 MB factory app image.
   for small art.
 - **Battery & idle dimming**: battery indicator on screen; backlight dims
   after 60 s of inactivity.
+- **Full-text info panel**: description and attribute rows are never
+  ellipsized; content taller than the panel auto-scrolls in a seamless
+  marquee loop.
 
 ## Controls
 
@@ -36,11 +39,12 @@ embedded inside the 3 MB factory app image.
 | Category grid | UP / DOWN (click) | Move selection |
 | Category grid | OK (click) | Enter category |
 | Entry list | UP / DOWN (click) | Move selection |
+| Entry list | UP / DOWN (long) | Jump +-10 entries |
 | Entry list | OK (click) | Open entry |
 | Entry list | OK (long) | Back to categories |
 | Detail | UP / DOWN (click) | Previous / next entry |
-| Detail | UP / DOWN (double) | Jump +-10 entries |
-| Detail | UP / DOWN (long) | Jump to first / last entry |
+| Detail | UP / DOWN (long) | Jump +-10 entries |
+| Detail | UP / DOWN (double) | Jump to first / last entry |
 | Detail | OK (long) | Back to list |
 
 ## Repository layout
@@ -62,6 +66,9 @@ bootloader_components/recovery_boot_hook/
 tools/gen_dex_data.py Data pipeline: data JSON -> RGB565 atlas + C tables
 tools/validate_dex_data.py  Generated-artifact consistency validator
 data pipeline source  sibling repo `stardew-valley-data` (data/*.json + images)
+docs/                 Development docs
+  README.md           Feature/architecture/build/troubleshooting guide
+  development-log.md  Full development process, pitfalls and decisions
 ```
 
 ## Building
@@ -73,7 +80,7 @@ first configure.
 ```bash
 idf.py set-target esp32c3
 idf.py build
-idf.py merge-bin   # complete image at build/merged_bin/merged-flash.bin
+idf.py merge-bin   # complete image at build/merged-binary.bin (about 1.5 MB)
 idf.py -p COMx flash monitor
 ```
 

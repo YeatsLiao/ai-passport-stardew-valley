@@ -22,6 +22,8 @@
 - **像素级渲染**：精灵图以 RGB565 存储、透明色预混星露谷纸色背景、
   raw-DEFLATE 压缩，运行时经 miniz 解压并对小图做 2x 最近邻放大。
 - **电量与息屏**：屏幕显示电量；60 秒无操作后背光调暗。
+- **全文信息面板**：描述与属性行绝不省略；内容超出面板高度时以
+  无缝 marquee 循环自动滚动。
 
 ## 按键操作
 
@@ -30,11 +32,12 @@
 | 分类网格 | UP / DOWN（单击） | 移动选择 |
 | 分类网格 | OK（单击） | 进入类别 |
 | 条目列表 | UP / DOWN（单击） | 移动选择 |
+| 条目列表 | UP / DOWN（长按） | 跳 +-10 条 |
 | 条目列表 | OK（单击） | 打开条目 |
 | 条目列表 | OK（长按） | 返回分类 |
 | 详情页 | UP / DOWN（单击） | 上/下一条 |
-| 详情页 | UP / DOWN（双击） | 跳 +-10 条 |
-| 详情页 | UP / DOWN（长按） | 跳到首条 / 末条 |
+| 详情页 | UP / DOWN（长按） | 跳 +-10 条 |
+| 详情页 | UP / DOWN（双击） | 跳到首条 / 末条 |
 | 详情页 | OK（长按） | 返回列表 |
 
 ## 仓库结构
@@ -56,6 +59,9 @@ bootloader_components/recovery_boot_hook/
 tools/gen_dex_data.py 数据管线：data JSON -> RGB565 图集 + C 表
 tools/validate_dex_data.py  生成产物一致性校验
 数据管线来源          同级仓库 `stardew-valley-data`（data/*.json + images）
+docs/                 开发文档
+  README.md           功能/架构/构建/故障排查指南
+  development-log.md  完整开发过程、踩坑与决策记录
 ```
 
 ## 构建
@@ -66,7 +72,7 @@ tools/validate_dex_data.py  生成产物一致性校验
 ```bash
 idf.py set-target esp32c3
 idf.py build
-idf.py merge-bin   # 完整镜像位于 build/merged_bin/merged-flash.bin
+idf.py merge-bin   # 完整镜像位于 build/merged-binary.bin（约 1.5 MB）
 idf.py -p COMx flash monitor
 ```
 
