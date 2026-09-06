@@ -141,10 +141,21 @@ static void worker_main(void *arg)
             uint16_t k = s_gen_odd ? 1 : 0; /* 后备缓冲/描述符 */
             uint16_t *buf = s_pixbuf[k];
             uint32_t w = 0, h = 0;
-            bool ok = (idx != DEX_SPRITE_NONE) &&
-                      dex_sprite_render(idx, buf,
-                                        DEX_SPRITE_MAX_W * DEX_SPRITE_MAX_H,
-                                        &w, &h);
+            /* 解码最多重试 2 次(共 3 次):同一张图同一索引偶发 TINFL_STATUS_FAILED
+             * 多为 SPI flash 映射瞬间缓存未命中,小延迟(vTaskDelay 1 tick)
+             * 重试通常可恢复;dex_sprite.c 已把 out_bytes 改为 out_cap_u16*2
+             * 给足回溯字典空间,此处为额外兑底。 */
+            int retries = 0;
+            bool ok = false;
+            if (idx != DEX_SPRITE_NONE) {
+                for (; retries < 3; retries++) {
+                    ok = dex_sprite_render(idx, buf,
+                                           DEX_SPRITE_MAX_W * DEX_SPRITE_MAX_H,
+                                           &w, &h);
+                    if (ok) break;
+                    vTaskDelay(1);
+                }
+            }
             if (ok) {
                 /* 小图 2x 最近邻放大到 ≤96,再居中交给 UI */
                 if (w <= 48 && h <= 48 &&
@@ -177,9 +188,9 @@ static void worker_main(void *arg)
             s_ready_idx = (uint8_t)k;
             s_gen_odd = !s_gen_odd;
             s_seq++;                        /* 提交:poll 凭序列号感知新帧 */
-            ESP_LOGI(TAG, "sprite %u -> %s %lux%lu buf%u", (unsigned)idx,
+            ESP_LOGI(TAG, "sprite %u -> %s %lux%lu buf%u retries=%d", (unsigned)idx,
                      ok ? "ok" : "none", (unsigned long)w, (unsigned long)h,
-                     (unsigned)k);
+                     (unsigned)k, retries);
         }
 
         if (!have && s_save_dirty) { /* 2s 无消息:去抖落盘 */

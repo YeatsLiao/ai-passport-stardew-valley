@@ -54,10 +54,17 @@ bool dex_sprite_render(uint16_t sprite_idx, uint16_t *rgb565_out,
      * 合法 deflate 流的匹配距离不超过已输出字节,回溯全部落在
      * [out, out+n) 内,不会触碰未初始化区域。
      * 必须每次 tinfl_init:s_infl 是持久静态上下文,残留的协程状态
-     * (m_state)会让下一次解压直接跳进中间状态而失败。 */
+     * (m_state)会让下一次解压直接跳进中间状态而失败。
+     *
+     * NON_WRAPPING 语义下 out_bytes 输入是"输出缓冲总容量",输出是
+     * "实际解压字节数"。曾经传精确 w*h*2,会在"恰好写满最后一个
+     * 字节且流结束"的脆弱边界上让 LZ 回溯引用失败,表现为同一张
+     * 图同一索引偶发 TINFL_STATUS_FAILED。改为传完整 out_cap_u16*2
+     * (即 96x96x2 字节全缓冲),字典空间充足,偶发性消失;输出长度
+     * 仍用精确 w*h*2 校验。 */
     tinfl_init(&s_infl);
     size_t in_bytes = len;
-    size_t out_bytes = (size_t)w * h * 2;
+    size_t out_bytes = (size_t)out_cap_u16 * 2;
     tinfl_status st = tinfl_decompress(
         &s_infl, blob() + payload + off, &in_bytes,
         (mz_uint8 *)rgb565_out, (mz_uint8 *)rgb565_out, &out_bytes,
