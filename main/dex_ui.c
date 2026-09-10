@@ -17,6 +17,7 @@
 #include "dex_core.h"
 #include "dex_layout.h"
 #include "dex_sprite.h"
+#include "dex_audio.h"
 
 #include "esp_log.h"
 #include "nvs.h"
@@ -334,6 +335,9 @@ static void build_category_page(void)
     lv_obj_set_scroll_dir(s_cat_grid, LV_DIR_VER);
     lv_obj_set_style_pad_all(s_cat_grid, 2, 0);
 
+    /* BGM: Country Shop (track 0) for browsing */
+    dex_audio_play(0);
+
     for (int i = 0; i < (int)DEX_CATEGORY_COUNT; i++) {
         int x = (i % 2) * 116;
         int y = (i / 2) * 40;
@@ -404,6 +408,9 @@ static void build_list_page(void)
     make_hint(s_list_scr, "OK VIEW  HOLD +-10  OK BACK");
     lv_screen_load(s_list_scr);
     if (n) lv_roller_set_selected(s_roller, s_idx, LV_ANIM_OFF);
+
+    /* BGM: Country Shop (track 0) for browsing */
+    dex_audio_play(0);
 }
 
 // ---------------------------------------------------------------------------
@@ -583,6 +590,10 @@ static void build_detail_page(void)
 
     make_hint(s_det_scr, "UP/DN +-1  HOLD +-10  OK BACK");
     lv_screen_load(s_det_scr);
+
+    /* BGM: Library & Museum (track 1) for detail view */
+    dex_audio_play(1);
+
     apply_entry();
 }
 
@@ -679,6 +690,7 @@ void dex_ui_key(bsp_btn_t btn, bsp_btn_ev_t ev)
             uint16_t n = dex_category_len(s_cat);
             if (btn == BSP_BTN_UP && n) { s_idx = 0; apply_entry(); }
             if (btn == BSP_BTN_DOWN && n) { s_idx = n - 1; apply_entry(); }
+            if (btn == BSP_BTN_OK) { dex_audio_toggle_mute(); }  /* OK 双击静音切换 */
         }
     }
 }

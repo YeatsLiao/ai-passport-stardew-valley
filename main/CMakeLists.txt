@@ -6,6 +6,9 @@ idf_component_register(
          "dex_layout.c"
          "dex_sprite.c"
          "dex_static.c"
+         "dex_audio.c"
+         "dex_adpcm.c"
+         "dex_bgm_data.c"
          "vendor/miniz/miniz.c"
     INCLUDE_DIRS "."
     REQUIRES bsp nvs_flash

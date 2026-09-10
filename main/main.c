@@ -10,6 +10,7 @@
 #include "bsp_i2c.h"
 #include "bsp_pins.h"      // 错误日志里要打印 BSP_LCD_* 引脚号
 #include "dex_ui.h"
+#include "dex_audio.h"
 
 #include "esp_log.h"
 
@@ -53,6 +54,9 @@ void app_main(void)
         ESP_LOGE(TAG, "按键初始化失败(ADC 电阻梯 GPIO0)");
         return;
     }
+
+    // 音频初始化(BGM 播放)—— 失败不阻塞,只是没声音。
+    dex_audio_init();
 
     if (bsp_lvgl_lock(1000)) {
         dex_ui_init();
