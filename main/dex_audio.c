@@ -30,6 +30,9 @@ void dex_audio_init(void)
     bsp_audio_set_format(8000, 16, 1);  /* 8kHz, 16-bit, mono */
     bsp_audio_set_volume(80);            /* 80% volume */
     ESP_LOGI(TAG, "audio init OK");
+
+    /* Auto-start continuous playback (track 0) */
+    dex_audio_play(0);
 }
 
 void dex_audio_play(int track_index)
