@@ -112,13 +112,15 @@ static void audio_task(void *arg)
         offset += block_align;
         
         if (samples > 0 && !s_muted) {
-            /* Write PCM to I2S (blocking) */
+            /* Write PCM to I2S (blocking) —— 自然节流,~255ms/block */
             size_t bytes = samples * 2;  /* 16-bit = 2 bytes/sample */
             bsp_audio_write(s_pcm_buf, bytes);
+        } else {
+            /* 静音时 bsp_audio_write 被跳过,必须主动让出 CPU,
+             * 否则 taskYIELD 在同优先级无就绪任务时立即返回,
+             * 任务空转饿死 IDLE → 看门狗触发 → 系统崩溃。 */
+            vTaskDelay(pdMS_TO_TICKS(10));
         }
-        
-        /* Small yield to watchdog */
-        taskYIELD();
     }
     
     ESP_LOGI(TAG, "task exit");

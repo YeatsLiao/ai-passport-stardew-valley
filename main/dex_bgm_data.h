@@ -4,11 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* Stardew Overture - 241,664 bytes ADPCM @ 8000Hz, block_align=1024 */
+/* Stardew Overture - 587,776 bytes ADPCM @ 8000Hz, block_align=1024 */
 extern const unsigned char dex_bgm_stardew_overture[];
-
-/* Cloud Country - 241,664 bytes ADPCM @ 8000Hz, block_align=1024 */
-extern const unsigned char dex_bgm_cloud_country[];
 
 typedef struct {
     const char *name;
@@ -21,4 +18,4 @@ typedef struct {
 extern const dex_bgm_track_t dex_bgm_tracks[];
 extern const int dex_bgm_track_count;
 
-#define DEX_BGM_TRACK_COUNT 2
+#define DEX_BGM_TRACK_COUNT 1
