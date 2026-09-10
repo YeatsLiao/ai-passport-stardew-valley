@@ -9,10 +9,10 @@ FFMPEG = r"D:\Project\ai-passport-stardew-valley\tools\ffmpeg_bin\ffmpeg.exe"
 OST_DIR = r"C:\Users\yeats\Desktop\ConcernedApe - Stardew Valley OST"
 OUT_DIR = r"D:\Project\ai-passport-stardew-valley\tools\_bgm"
 
-# 2 tracks: browsing (cheerful) + detail (calm)
+# 2 tracks: overture (main theme) + cloud country (calm)
 TRACKS = [
-    ("32 Country Shop",           30, "country_shop"),
-    ("23 The Library And Museum", 30, "library_museum"),
+    ("01 Stardew Valley Overture", 60, "stardew_overture"),
+    ("02 Cloud Country",          60, "cloud_country"),
 ]
 
 os.makedirs(OUT_DIR, exist_ok=True)

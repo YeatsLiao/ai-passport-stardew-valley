@@ -9,8 +9,8 @@ OUT_C = r"D:\Project\ai-passport-stardew-valley\main\dex_bgm_data.c"
 OUT_H = r"D:\Project\ai-passport-stardew-valley\main\dex_bgm_data.h"
 
 TRACKS = [
-    ("country_shop",   "Country Shop"),
-    ("library_museum", "Library & Museum"),
+    ("stardew_overture", "Stardew Overture"),
+    ("cloud_country",   "Cloud Country"),
 ]
 
 def read_adpcm_wav(path):
