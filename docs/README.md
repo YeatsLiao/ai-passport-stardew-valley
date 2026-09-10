@@ -5,7 +5,8 @@
 AI Passport Stardew Valley Dex 是基于 FoloToy AI Passport 硬件（ESP32-C3、
 8 MB Flash、240x320 ST7789 屏、三按键 ADC 键盘）的星露谷物语**离线图鉴**
 固件。设备完全离线运行：无 WiFi、无蓝牙、无网络。全部数据 —— 30 个类别、
-1161 条条目、1092 张像素图 —— 均嵌入 3 MB factory 应用镜像内。
+1161 条条目、1092 张像素图 —— 均嵌入 3 MB factory 应用镜像内。开机自动循环
+播放 Stardew Valley Overture（完整 2:26），IMA ADPCM 8kHz 单声道嵌入固件。
 
 ## 页面与按键
 
@@ -19,10 +20,11 @@ AI Passport Stardew Valley Dex 是基于 FoloToy AI Passport 硬件（ESP32-C3�
 | 条目列表 | UP / DOWN（长按） | 跳 +-10 条 |
 | 条目列表 | OK（单击） | 打开条目 |
 | 条目列表 | OK（长按） | 返回分类 |
-| 详情页 | UP / DOWN（单击） | 上 / 下一条（±1） |
+| 详情页 | UP / DOWN（按下） | 上 / 下一条（环绕） |
 | 详情页 | UP / DOWN（长按） | 快速翻页（±10） |
 | 详情页 | UP / DOWN（双击） | 跳到首条 / 末条 |
 | 详情页 | OK（长按） | 返回列表 |
+| 详情页 | OK（双击） | 静音 / 取消静音 |
 
 ### 屏幕显示
 
@@ -49,6 +51,10 @@ AI Passport Stardew Valley Dex 是基于 FoloToy AI Passport 硬件（ESP32-C3�
 │  dex_static.c    生成产物：条目表 + 属性串池             │
 │  dex_sprites.bin / dex_attrs.bin  生成产物：嵌入资源    │
 ├──────────────────────────────────────────────────────┤
+│  dex_audio.c       BGM 播放任务（IMA ADPCM 流式解码 + I2S）│
+│  dex_adpcm.c       IMA ADPCM 4-bit 解码器（~100 行 C）   │
+│  dex_bgm_data.c    生成产物：BGM 曲目 C 数组              │
+──────────────────────────────────────────────────────┤
 │  vendor/miniz/   miniz（仅 tinfl，raw-DEFLATE 解压）   │
 ├──────────────────────────────────────────────────────┤
 │               components/bsp/                         │
@@ -74,6 +80,23 @@ dex_attrs.bin                  "Label|Value\0" 连续字符串池
         ▼
 一致性校验（TOC 越界 / 解压回读 / 尺寸上限 96x96）
 ```
+
+### BGM 管线
+
+```
+OST MP3（ConcernedApe - Stardew Valley OST）
+        │  convert_bgm.py（ffmpeg: -ac 1 -ar 8000 -codec:a adpcm_ima_wav）
+        ▼
+tools/_bgm/stardew_overture.wav  IMA ADPCM WAV（block_align=1024）
+        │  gen_bgm_data.py
+        ▼
+dex_bgm_data.c/h                 C 数组嵌入固件（~574 KB / 2:26）
+```
+
+- **格式选型**：IMA ADPCM 4:1 压缩，8kHz 单声道，无需外部解码库（~100 行 C）。
+- **体积**：2:26 全曲 ≈ 574 KB，merged binary 约 2.05 MB / 3 MB factory。
+- **I2S 槽位**：`bsp_audio_set_format()` 根据声道数动态切换 MONO/STEREO 槽位模式，
+  避免单声道数据误配立体声槽位导致播放速度翻倍。
 
 关键处理：
 
@@ -108,6 +131,9 @@ LVGL 定时器 poll_tick (30ms)
 ```
 ├── main/
 │   ├── dex_ui.c            # 三页 UI 状态机、信息面板、无缝滚动
+│   ├── dex_audio.c/h       # BGM 播放（IMA ADPCM 流式解码 + I2S）
+│   ├── dex_adpcm.c/h       # IMA ADPCM 4-bit 解码器
+│   ├── dex_bgm_data.c/h    # 生成产物：BGM 曲目 C 数组
 │   ├── dex_core.c/h        # 数据访问层（类别/条目/属性解析）
 │   ├── dex_sprite.c/h      # tinfl 解压 + 2x 最近邻缩放
 │   ├── dex_layout.c/h      # 布局几何（纯 C，带宿主校验辅助函数）
@@ -121,6 +147,8 @@ LVGL 定时器 poll_tick (30ms)
 │                           # 5 秒 UP 键进入 Recovery（模板契约）
 ├── tools/
 │   ├── gen_dex_data.py     # 数据管线：JSON/图片 → C 表 + bin 资源
+│   ├── convert_bgm.py      # BGM 管线：OST MP3 → IMA ADPCM WAV（ffmpeg）
+│   ├── gen_bgm_data.py     # BGM 管线：ADPCM WAV → C 数组
 │   └── validate_dex_data.py# 产物一致性校验
 ├── docs/
 │   ├── README.md           # 本文档
@@ -227,10 +255,14 @@ python tools/validate_dex_data.py --data D:\path\to\stardew-valley-data
 | 电量显示 `BAT: --` | 板上无 CW2017 电量计 | 正常现象 |
 | 快速连点后图片不更新 | 旧版布尔标志轮询丢帧 | 已修复：递增序列号 `s_seq` 消费 |
 | 烧录后卡 Recovery | 误触 5 秒 UP 键钩子 | 松开按键重启即可 |
+| 音乐播放一会就停/重启 | 静音时 `taskYIELD()` 空转饿死 IDLE → 看门狗 | 已修复：静音分支用 `vTaskDelay(10ms)` |
+| 音乐播放速度翻倍 | I2S 槽位硬编码 STEREO，单声道数据被 2× 消耗 | 已修复：`bsp_audio_set_format()` 动态配 MONO |
+| 双击静音后 UP/DN 失灵 | `iot_button` 双击超时延迟 `SINGLE_CLICK` | 已修复：详情页 UP/DN 改用 `PRESS` 事件 |
 
 ## 扩展方向
 
 - 音效（确认/翻页提示音，bsp_audio 已就绪）
+- 多曲目切换（按页面类型自动切换 BGM）
 - 条目收藏与"我的收藏"列表（NVS 位图）
 - 英文前缀搜索/快速跳转
 - 界面中文化（需自制中文字库；Montserrat 无中文字形）
