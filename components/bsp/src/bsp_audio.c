@@ -129,11 +129,41 @@ esp_err_t bsp_audio_set_format(uint32_t hz, uint8_t bits, uint8_t ch) {
     if (s_opened) {
         esp_codec_dev_close(s_dev);
         s_opened = false;
-        // close 把 I2S 通道退回 READY,而接下来的 open 内部又会 disable 一次 →
-        // 会打 "channel has not been enabled yet"。补一次 enable 让它合法。
-        if (s_tx) i2s_channel_enable(s_tx);
-        if (s_rx) i2s_channel_enable(s_rx);
     }
+
+    // i2s_channel_reconfig_std_slot 要求通道处于 DISABLED 状态。
+    // 但 i2s_full_duplex_init() 建通道时就 enable 了,esp_codec_dev_close
+    // 也不会 disable,所以这里必须显式 disable。
+    if (s_tx) i2s_channel_disable(s_tx);
+    if (s_rx) i2s_channel_disable(s_rx);
+
+    // I2S 槽位模式必须与声道数匹配:
+    //   单声道数据 → I2S_SLOT_MODE_MONO,DMA 每帧只读一个采样;
+    //   立体声数据 → I2S_SLOT_MODE_STEREO,DMA 每帧读左右两个采样。
+    // 若单声道数据误配立体声槽位,DMA 以 2× 速率消耗缓冲区,
+    // 播放速度翻倍(60s 曲目 30s 播完)。
+    if (s_tx) {
+        i2s_std_slot_config_t slot = {
+            .data_bit_width = I2S_DATA_BIT_WIDTH_16BIT,
+            .slot_bit_width = I2S_SLOT_BIT_WIDTH_AUTO,
+            .slot_mode      = (ch == 1) ? I2S_SLOT_MODE_MONO
+                                        : I2S_SLOT_MODE_STEREO,
+            .slot_mask      = (ch == 1) ? I2S_STD_SLOT_LEFT
+                                        : I2S_STD_SLOT_BOTH,
+            .ws_width       = bits,
+            .ws_pol         = false,
+            .bit_shift      = true,
+            .left_align     = true,
+            .big_endian     = false,
+            .bit_order_lsb  = false,
+        };
+        i2s_channel_reconfig_std_slot(s_tx, &slot);
+    }
+
+    // 槽位重配完毕,重新 enable 通道,让接下来的 esp_codec_dev_open
+    // 内部的 disable → 重配时钟 → enable 流程合法。
+    if (s_tx) i2s_channel_enable(s_tx);
+    if (s_rx) i2s_channel_enable(s_rx);
 
     esp_codec_dev_sample_info_t fs = {
         .bits_per_sample = bits,
