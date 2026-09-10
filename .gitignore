@@ -7,3 +7,9 @@ dependencies.lock
 !main/dex_sprites.bin
 !main/dex_attrs.bin
 .DS_Store
+
+# BGM 工具链临时产物
+tools/ffmpeg_bin/
+tools/_bgm/
+tools/_check_wav.py
+tools/_test_bitrates.py
