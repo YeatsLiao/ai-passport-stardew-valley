@@ -335,9 +335,6 @@ static void build_category_page(void)
     lv_obj_set_scroll_dir(s_cat_grid, LV_DIR_VER);
     lv_obj_set_style_pad_all(s_cat_grid, 2, 0);
 
-    /* BGM: Country Shop (track 0) for browsing */
-    dex_audio_play(0);
-
     for (int i = 0; i < (int)DEX_CATEGORY_COUNT; i++) {
         int x = (i % 2) * 116;
         int y = (i / 2) * 40;
@@ -408,9 +405,6 @@ static void build_list_page(void)
     make_hint(s_list_scr, "OK VIEW  HOLD +-10  OK BACK");
     lv_screen_load(s_list_scr);
     if (n) lv_roller_set_selected(s_roller, s_idx, LV_ANIM_OFF);
-
-    /* BGM: Country Shop (track 0) for browsing */
-    dex_audio_play(0);
 }
 
 // ---------------------------------------------------------------------------
@@ -590,9 +584,6 @@ static void build_detail_page(void)
 
     make_hint(s_det_scr, "UP/DN +-1  HOLD +-10  OK BACK");
     lv_screen_load(s_det_scr);
-
-    /* BGM: Library & Museum (track 1) for detail view */
-    dex_audio_play(1);
 
     apply_entry();
 }

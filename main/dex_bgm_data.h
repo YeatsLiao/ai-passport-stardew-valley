@@ -4,11 +4,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* Country Shop - 120,832 bytes ADPCM @ 8000Hz, block_align=1024 */
-extern const unsigned char dex_bgm_country_shop[];
+/* Stardew Overture - 241,664 bytes ADPCM @ 8000Hz, block_align=1024 */
+extern const unsigned char dex_bgm_stardew_overture[];
 
-/* Library & Museum - 120,832 bytes ADPCM @ 8000Hz, block_align=1024 */
-extern const unsigned char dex_bgm_library_museum[];
+/* Cloud Country - 241,664 bytes ADPCM @ 8000Hz, block_align=1024 */
+extern const unsigned char dex_bgm_cloud_country[];
 
 typedef struct {
     const char *name;
