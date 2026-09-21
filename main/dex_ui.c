@@ -620,10 +620,8 @@ static void detail_move(int delta)
 {
     uint16_t n = dex_category_len(s_cat);
     if (!n) return;
-    int idx = (int)s_idx + delta;
-    if (idx < 0) idx = 0;
-    if (idx > (int)n - 1) idx = n - 1;
-    if (idx == (int)s_idx) return;
+    int idx = ((int)s_idx + delta) % (int)n;
+    if (idx < 0) idx += (int)n;
     s_idx = (uint16_t)idx;
     apply_entry();
 }
@@ -632,8 +630,17 @@ void dex_ui_key(bsp_btn_t btn, bsp_btn_ev_t ev)
 {
     dex_battery_activity();
 
-    if (ev != BSP_BTN_CLICK && ev != BSP_BTN_DOUBLE && ev != BSP_BTN_LONG)
-        return;
+    /* 详情页的 UP/DN 用 PRESS(按下即响应),避开 iot_button 双击检测
+     * 给 SINGLE_CLICK 加的等待超时(该超时会让双击 OK 后 UP/DN 单击失灵)。
+     * 其余页面仍只接受 CLICK/DOUBLE/LONG。 */
+    if (s_page == PAGE_DETAIL) {
+        if (ev != BSP_BTN_PRESS && ev != BSP_BTN_CLICK &&
+            ev != BSP_BTN_DOUBLE && ev != BSP_BTN_LONG)
+            return;
+    } else {
+        if (ev != BSP_BTN_CLICK && ev != BSP_BTN_DOUBLE && ev != BSP_BTN_LONG)
+            return;
+    }
 
     if (s_page == PAGE_CATEGORY) {
         if (ev != BSP_BTN_CLICK) return;
@@ -671,17 +678,18 @@ void dex_ui_key(bsp_btn_t btn, bsp_btn_ev_t ev)
             leave_detail();
             return;
         }
-        if (ev == BSP_BTN_CLICK) {          /* 单击 = ±1 */
+        /* UP/DN:用 PRESS 即时响应,忽略 CLICK 避免重复触发 */
+        if (ev == BSP_BTN_PRESS) {
             if (btn == BSP_BTN_UP) detail_move(-1);
             if (btn == BSP_BTN_DOWN) detail_move(+1);
-        } else if (ev == BSP_BTN_LONG) {    /* 长按 = ±10(不依赖双击) */
+        } else if (ev == BSP_BTN_LONG) {    /* 长按 = ±10 */
             if (btn == BSP_BTN_UP) detail_move(-10);
             if (btn == BSP_BTN_DOWN) detail_move(+10);
-        } else if (ev == BSP_BTN_DOUBLE) {  /* 双击 = 跳首/末(锦上添花) */
+        } else if (ev == BSP_BTN_DOUBLE) {  /* 双击 = 跳首/末 或 静音 */
             uint16_t n = dex_category_len(s_cat);
             if (btn == BSP_BTN_UP && n) { s_idx = 0; apply_entry(); }
             if (btn == BSP_BTN_DOWN && n) { s_idx = n - 1; apply_entry(); }
-            if (btn == BSP_BTN_OK) { dex_audio_toggle_mute(); }  /* OK 双击静音切换 */
+            if (btn == BSP_BTN_OK) { dex_audio_toggle_mute(); }
         }
     }
 }
