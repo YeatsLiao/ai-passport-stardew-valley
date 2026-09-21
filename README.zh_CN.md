@@ -4,12 +4,20 @@
 
 # AI Passport — 星露谷物语图鉴
 
+![封面](docs/assets/cover.jpg)
+
 面向 [FoloToy AI Passport](https://github.com/FoloToy/ai-passport) 硬件
 （ESP32-C3、8 MB Flash、240x320 ST7789 屏、三按键 ADC 键盘）的星露谷物语
 离线图鉴固件。
 
 完全离线运行：无 WiFi、无蓝牙、无网络。全部数据 —— **30 个类别、1161 条
 条目、1092 张像素图** —— 均嵌入 3 MB factory 应用镜像内。
+
+## 实机截图
+
+| 分类网格 | 条目列表 | 详情 | 村民 |
+|:---:|:---:|:---:|:---:|
+| ![分类](docs/assets/screenshot-categories.jpg) | ![列表](docs/assets/screenshot-list.jpg) | ![详情](docs/assets/screenshot-detail.jpg) | ![村民](docs/assets/screenshot-villager.jpg) |
 
 ## 功能
 
@@ -80,9 +88,25 @@ docs/                 开发文档
 ```bash
 idf.py set-target esp32c3
 idf.py build
-idf.py merge-bin   # 完整镜像位于 build/merged-binary.bin（约 1.5 MB）
+idf.py merge-bin   # 完整镜像位于 build/merged-binary.bin（约 2.8 MB）
+```
+
+### 从源码烧录
+
+```bash
 idf.py -p COMx flash monitor
 ```
+
+### 烧录预编译固件
+
+从 [Releases](../../releases) 下载 `ai-passport-stardew-valley-full.bin`，
+使用 `esptool.py` 烧录：
+
+```bash
+esptool.py --chip esp32c3 -p COM3 --baud 460800 write_flash 0x0 ai-passport-stardew-valley-full.bin
+```
+
+> 将 `COM3` 替换为设备实际串口号。Windows 可在设备管理器中查看。
 
 仅重新生成数据资源时才需要 Python 3.11 + Pillow：
 

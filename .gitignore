@@ -8,6 +8,10 @@ dependencies.lock
 !main/dex_attrs.bin
 .DS_Store
 
+# 发布产物与工具
+release/
+skills/
+
 # BGM 工具链临时产物
 tools/ffmpeg_bin/
 tools/_bgm/

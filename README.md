@@ -4,6 +4,8 @@
 
 # AI Passport — Stardew Valley Dex
 
+![Cover](docs/assets/cover.jpg)
+
 An offline Stardew Valley encyclopedia ("dex") firmware for the
 [FoloToy AI Passport](https://github.com/FoloToy/ai-passport) hardware
 (ESP32-C3, 8 MB flash, 240x320 ST7789 display, three-button ADC keypad).
@@ -11,6 +13,12 @@ An offline Stardew Valley encyclopedia ("dex") firmware for the
 Everything runs fully offline: no WiFi, no Bluetooth, no network. The entire
 dataset — **1161 entries across 30 categories with 1092 pixel sprites** — is
 embedded inside the 3 MB factory app image.
+
+## Screenshots
+
+| Category grid | Entry list | Detail view | Villager |
+|:---:|:---:|:---:|:---:|
+| ![Categories](docs/assets/screenshot-categories.jpg) | ![List](docs/assets/screenshot-list.jpg) | ![Detail](docs/assets/screenshot-detail.jpg) | ![Villager](docs/assets/screenshot-villager.jpg) |
 
 ## Features
 
@@ -88,9 +96,25 @@ first configure.
 ```bash
 idf.py set-target esp32c3
 idf.py build
-idf.py merge-bin   # complete image at build/merged-binary.bin (about 1.5 MB)
+idf.py merge-bin   # complete image at build/merged-binary.bin (about 2.8 MB)
+```
+
+### Flash from source
+
+```bash
 idf.py -p COMx flash monitor
 ```
+
+### Flash prebuilt firmware
+
+Download `ai-passport-stardew-valley-full.bin` from
+[Releases](../../releases) and flash with `esptool.py`:
+
+```bash
+esptool.py --chip esp32c3 -p COM3 --baud 460800 write_flash 0x0 ai-passport-stardew-valley-full.bin
+```
+
+> Replace `COM3` with your actual serial port. On Windows, check Device Manager.
 
 Python 3.11 + Pillow are required only when regenerating data assets:
 
