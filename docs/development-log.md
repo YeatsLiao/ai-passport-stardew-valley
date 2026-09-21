@@ -168,6 +168,49 @@ SPI flash 瞬间缓存未命中；日志加 `retries=N` 字段区分"真失败"�
 
 ---
 
+## 阶段 8：BGM 集成
+
+需求：“开机自动播放星露谷背景音乐”。
+
+### 方案选型
+
+| 方案 | 格式 | 3 分钟体积 | 解码开销 | 代码体积 | 推荐度 |
+|------|------|-----------|---------|---------|--------|
+| IMA ADPCM | 8kHz 16-bit 单声道 | ~720 KB | 极低 (~2KB 代码) | 0 | ⭐⭐⭐⭐⭐ |
+| MP3 64kbps | libhelix 解码 | ~1.44 MB | 中等 | ~50 KB | ⭐⭐⭐ |
+| Opus 16kbps | libopus 解码 | ~360 KB | 高 (~100KB 代码) | ~100 KB | ⭐⭐ |
+
+最终选择 **IMA ADPCM**：零外部依赖、~100 行 C 解码器、体积可接受。
+
+### 实施步骤
+
+1. **音频转换**：`tools/convert_bgm.py` 调用 ffmpeg 将 OST MP3 转为 IMA ADPCM WAV
+   （`-ac 1 -ar 8000 -codec:a adpcm_ima_wav`），block_align=1024。
+2. **C 数组生成**：`tools/gen_bgm_data.py` 解析 WAV 头，提取 ADPCM 数据生成
+   `dex_bgm_data.c/h`（`sizeof` 在 .c 文件中计算，避免 extern 不完整数组陷阱）。
+3. **解码器**：`dex_adpcm.c/h` 实现 IMA ADPCM 4-bit 流式解码，按 block 处理。
+4. **播放器**：`dex_audio.c/h` 创建专用任务，流式解码 → I2S 输出，支持循环/静音。
+5. **UI 集成**：`main.c` 调用 `dex_audio_init()` 开机自动播放；`dex_ui.c` 添加
+   OK 双击静音切换。
+
+### 踩坑记录
+
+| # | 坑 | 根因 | 修复 |
+|---|-----|------|------|
+| 1 | 音乐播放速度翻倍（60s → 30s） | I2S 槽位硬编码 `I2S_SLOT_MODE_STEREO`，单声道数据被 DMA 以 2× 速率消耗 | `bsp_audio_set_format()` 根据声道数动态调用 `i2s_channel_reconfig_std_slot()` 切换 MONO/STEREO |
+| 2 | `i2s_channel_reconfig_std_slot` 报错 "invalid state" | 该 API 要求通道处于 DISABLED 状态，但 `esp_codec_dev_close()` 不会自动 disable | 重配前显式调用 `i2s_channel_disable()` |
+| 3 | 静音后系统崩溃重启（看门狗触发） | `bsp_audio_write()` 被跳过，任务仅靠 `taskYIELD()` 节流；FreeRTOS 中 `taskYIELD()` 不是真正延时，无同优先级就绪任务时立即返回，IDLE 任务饿死 | 静音分支改用 `vTaskDelay(10ms)` 强制让出 CPU |
+| 4 | 双击静音后 UP/DN 失灵 | `iot_button` 双击检测给 `SINGLE_CLICK` 加等待超时，其他按键单击事件延迟/丢失 | 详情页 UP/DN 改用 `BSP_BTN_PRESS` 事件（按下即触发，零延迟） |
+| 5 | 最后一个条目不环绕到第一个 | `detail_move()` 用 clamp（到头卡住）而非 modulo | 改为 `idx = ((int)s_idx + delta) % n; if (idx < 0) idx += n;` |
+
+### 最终数据
+
+- **曲目**：Stardew Valley Overture（完整 2:26），587,776 bytes ADPCM @ 8kHz
+- **体积**：merged binary ≈ 2.05 MB / 3 MB factory，剩余 ~0.95 MB
+- **功能**：开机自动循环播放，OK 双击静音/取消静音
+
+---
+
 ## 踩坑总结（给后来者）
 
 | # | 坑 | 教训 |
@@ -182,12 +225,21 @@ SPI flash 瞬间缓存未命中；日志加 `retries=N` 字段区分"真失败"�
 | 8 | 属性值含 `#` 会被 recolor 误解析 | 用双 label 拼接替代 recolor，数据先行检查再定方案 |
 | 9 | 中文显示变方块 | Montserrat 无中文字形，v1 用英文界面 |
 | 10 | LVGL 非线程安全 | 一切 `lv_*` 调用都在持 `bsp_lvgl_lock` 的线程内完成 |
+| 11 | I2S 槽位硬编码 STEREO → 播放速度翻倍 | 根据声道数动态调用 `i2s_channel_reconfig_std_slot()`，重配前必须 `i2s_channel_disable()` |
+| 12 | 静音时 `taskYIELD()` 空转 → 看门狗崩溃 | `taskYIELD()` 不是真正延时，静音分支必须用 `vTaskDelay()` |
+| 13 | `iot_button` 双击超时导致其他按键失灵 | 需要即时响应的操作用 `PRESS` 事件而非 `SINGLE_CLICK` |
 
 ---
 
 ## 提交历史（分步提交记录）
 
 ```
+<latest>  docs: update READMEs and docs for BGM integration
+<latest>  fix: audio task watchdog crash when muted (vTaskDelay)
+<latest>  fix: UP/DN navigation after double-click mute (PRESS event)
+<latest>  fix: I2S slot mode for mono audio (dynamic MONO/STEREO)
+<latest>  feat: full Stardew Valley Overture BGM (2:26, IMA ADPCM)
+<latest>  feat: BGM conversion tools (convert_bgm.py, gen_bgm_data.py)
 c90dde9 feat: seamless marquee loop for the info panel
 c1c03a0 feat: full-text info panel with auto-scroll on detail page
 26a32fc fix: stabilize sprite decode with full tinfl dict and retries

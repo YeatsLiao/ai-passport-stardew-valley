@@ -24,6 +24,8 @@
 - **电量与息屏**：屏幕显示电量；60 秒无操作后背光调暗。
 - **全文信息面板**：描述与属性行绝不省略；内容超出面板高度时以
   无缝 marquee 循环自动滚动。
+- **背景音乐**：开机自动循环播放 Stardew Valley Overture（完整 2:26）；
+  IMA ADPCM 8kHz 单声道嵌入固件，零外部依赖。
 
 ## 按键操作
 
@@ -35,10 +37,11 @@
 | 条目列表 | UP / DOWN（长按） | 跳 +-10 条 |
 | 条目列表 | OK（单击） | 打开条目 |
 | 条目列表 | OK（长按） | 返回分类 |
-| 详情页 | UP / DOWN（单击） | 上/下一条 |
+| 详情页 | UP / DOWN（按下） | 上/下一条（环绕） |
 | 详情页 | UP / DOWN（长按） | 跳 +-10 条 |
 | 详情页 | UP / DOWN（双击） | 跳到首条 / 末条 |
 | 详情页 | OK（长按） | 返回列表 |
+| 详情页 | OK（双击） | 静音 / 取消静音 |
 
 ## 仓库结构
 
@@ -48,6 +51,9 @@ main/                 固件应用（纯 C 核心 + LVGL 界面）
   dex_sprite.c/h      运行时精灵解压 + 2x 缩放
   dex_layout.c/h      240x320 屏幕布局几何
   dex_ui.c            三页面 UI 状态机（分类/列表/详情）
+  dex_audio.c/h       BGM 播放（IMA ADPCM 流式解码 + I2S 输出）
+  dex_adpcm.c/h       IMA ADPCM 4-bit 解码器（~100 行 C）
+  dex_bgm_data.c/h    生成产物：BGM 曲目 C 数组（源自 convert_bgm.py）
   dex_battery.c/h     电量指示 + 空闲背光调暗
   dex_static.c/h      生成产物：条目表 + 属性串池（源自 data JSON）
   dex_sprites.bin     生成产物：精灵图集（TOC + raw-DEFLATE RGB565）
@@ -57,6 +63,8 @@ components/bsp/       板级支持包（来自官方 ai-passport）
 bootloader_components/recovery_boot_hook/
                       5 秒 UP 键进入 Recovery 的引导钩子（模板契约）
 tools/gen_dex_data.py 数据管线：data JSON -> RGB565 图集 + C 表
+tools/convert_bgm.py  BGM 管线：OST MP3 -> IMA ADPCM WAV（ffmpeg）
+tools/gen_bgm_data.py BGM 管线：ADPCM WAV -> C 数组嵌入固件
 tools/validate_dex_data.py  生成产物一致性校验
 数据管线来源          同级仓库 `stardew-valley-data`（data/*.json + images）
 docs/                 开发文档

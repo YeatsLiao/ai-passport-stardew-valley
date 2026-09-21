@@ -31,6 +31,8 @@ embedded inside the 3 MB factory app image.
 - **Full-text info panel**: description and attribute rows are never
   ellipsized; content taller than the panel auto-scrolls in a seamless
   marquee loop.
+- **Background music**: loops Stardew Valley Overture (full 2:26) on boot;
+  IMA ADPCM 8 kHz mono embedded in firmware, zero external dependencies.
 
 ## Controls
 
@@ -42,10 +44,11 @@ embedded inside the 3 MB factory app image.
 | Entry list | UP / DOWN (long) | Jump +-10 entries |
 | Entry list | OK (click) | Open entry |
 | Entry list | OK (long) | Back to categories |
-| Detail | UP / DOWN (click) | Previous / next entry |
+| Detail | UP / DOWN (press) | Previous / next entry (wrap) |
 | Detail | UP / DOWN (long) | Jump +-10 entries |
 | Detail | UP / DOWN (double) | Jump to first / last entry |
 | Detail | OK (long) | Back to list |
+| Detail | OK (double) | Toggle mute |
 
 ## Repository layout
 
@@ -55,6 +58,9 @@ main/                 Firmware application (pure C core + LVGL UI)
   dex_sprite.c/h      Runtime sprite inflate + 2x scaler
   dex_layout.c/h      Layout geometry for the 240x320 screen
   dex_ui.c            Three-page UI state machine (category/list/detail)
+  dex_audio.c/h       BGM playback (IMA ADPCM stream decode + I2S output)
+  dex_adpcm.c/h       IMA ADPCM 4-bit decoder (~100 lines of C)
+  dex_bgm_data.c/h    Generated: BGM track C arrays (from convert_bgm.py)
   dex_battery.c/h     Battery indicator + idle backlight dimming
   dex_static.c/h      Generated: entry table + attribute pool (from data JSON)
   dex_sprites.bin     Generated: sprite atlas (TOC + raw-DEFLATE RGB565)
@@ -64,6 +70,8 @@ components/bsp/       Board support package (from upstream ai-passport)
 bootloader_components/recovery_boot_hook/
                       Permanent 5-second UP-key recovery hook (template contract)
 tools/gen_dex_data.py Data pipeline: data JSON -> RGB565 atlas + C tables
+tools/convert_bgm.py  BGM pipeline: OST MP3 -> IMA ADPCM WAV (ffmpeg)
+tools/gen_bgm_data.py BGM pipeline: ADPCM WAV -> C arrays for firmware
 tools/validate_dex_data.py  Generated-artifact consistency validator
 data pipeline source  sibling repo `stardew-valley-data` (data/*.json + images)
 docs/                 Development docs
