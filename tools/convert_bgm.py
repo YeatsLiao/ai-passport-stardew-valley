@@ -9,10 +9,9 @@ FFMPEG = r"D:\Project\ai-passport-stardew-valley\tools\ffmpeg_bin\ffmpeg.exe"
 OST_DIR = r"C:\Users\yeats\Desktop\ConcernedApe - Stardew Valley OST"
 OUT_DIR = r"D:\Project\ai-passport-stardew-valley\tools\_bgm"
 
-# 2 tracks: overture (main theme) + cloud country (calm)
+# 1 track: full Stardew Valley Overture (2:26, no trim)
 TRACKS = [
-    ("01 Stardew Valley Overture", 60, "stardew_overture"),
-    ("02 Cloud Country",          60, "cloud_country"),
+    ("01 Stardew Valley Overture", 0, "stardew_overture"),
 ]
 
 os.makedirs(OUT_DIR, exist_ok=True)
@@ -25,15 +24,17 @@ for pattern, seconds, out_name in TRACKS:
         continue
     src = matches[0]
     dst = os.path.join(OUT_DIR, f"{out_name}.wav")
-    r = subprocess.run([
-        FFMPEG, "-y", "-i", src,
-        "-t", str(seconds),
+    cmd = [FFMPEG, "-y", "-i", src]
+    if seconds > 0:
+        cmd += ["-t", str(seconds)]
+    cmd += [
         "-ac", "1",              # mono
         "-ar", "8000",           # 8kHz
         "-f", "wav",
         "-codec:a", "adpcm_ima_wav",  # IMA ADPCM 4-bit
         dst
-    ], capture_output=True, text=True)
+    ]
+    r = subprocess.run(cmd, capture_output=True, text=True)
     size = os.path.getsize(dst)
     results.append((out_name, dst, size))
     print(f"  {out_name:20s} -> {size:>8,} bytes ({size/1024:.0f} KB)")
